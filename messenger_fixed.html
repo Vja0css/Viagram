@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Viagram Messenger</title>
+<style>
+  body,html { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; background:#121212; color:#eee; display:flex; }
+  #sidebar {
+    width: 280px; background:#1f1f1f; display:flex; flex-direction: column; padding: 10px; box-sizing: border-box;
+  }
+  #sidebar h2 { margin:10px 0 10px 10px; font-weight: 700; font-size: 1.2em; }
+  #userPanel {
+    padding:10px; border-bottom: 1px solid #333; display:flex; align-items:center; gap:10px;
+  }
+  #userPanel img {
+    width:40px; height:40px; border-radius:50%; object-fit:cover; background:#555;
+  }
+  #userPanel span { flex:1; font-weight:700; font-size:1em; }
+  #logoutBtn {
+    background:#f44336; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; color:#fff;
+  }
+  #friendsList, #channelsList {
+    flex: 1; overflow-y: auto; padding: 10px 0;
+  }
+  .section-title {
+    font-weight: 600; font-size: 1em; margin: 0 10px 5px 10px; text-transform: uppercase; color:#aaa;
+  }
+  .list-item {
+    padding: 8px 12px; margin: 4px 10px; border-radius: 6px; cursor: pointer;
+    display: flex; align-items:center; gap:10px; transition: background 0.2s ease;
+  }
+  .list-item:hover, .list-item.active {
+    background: #333;
+  }
+  .list-item img.avatar {
+    width:32px; height:32px; border-radius:50%; object-fit:cover; background:#666;
+  }
+  .online-dot {
+    width:10px; height:10px; border-radius:50%; background:#4caf50; margin-left:auto;
+  }
+  #addFriendForm, #createChannelForm {
+    margin: 10px;
+    display: flex;
+    gap: 8px;
+  }
+  #addFriendInput, #createChannelInput {
+    flex:1;
+    padding: 6px 8px;
+    border-radius: 5px;
+    border: none;
+    font-size: 0.9em;
+    background:#333; color:#eee;
+  }
+  #addFriendBtn, #createChannelBtn {
+    background:#4caf50; border:none; padding: 6px 12px; border-radius: 5px; color:#fff; cursor:pointer;
+  }
+  #chatHeader {
+    background:#222; padding: 15px; font-weight: 700; font-size: 1.1em; border-bottom: 1px solid #333; display:flex; align-items:center; gap:10px;
+  }
+  #chatHeader img.avatar {
+    width:40px; height:40px; border-radius:50%; object-fit:cover; background:#666;
+  }
+  #chatMessages {
+    flex: 1; padding: 15px; overflow-y: auto; background:#181818;
+  }
+  .message {
+    margin-bottom: 10px; max-width: 60%; padding: 8px 12px; border-radius: 12px; display:flex; align-items:center; gap:10px;
+  }
+  .message .avatar {
+    width:32px; height:32px; border-radius:50%; object-fit:cover; background:#555;
+  }
+  .message.self {
+    margin-left: auto;
+    background: #4caf50;
+    color: #121212;
+  }
+  .message.other {
+    background: #333;
+  }
+  #messageForm {
+    display: flex; padding: 10px; border-top: 1px solid #333; background:#222;
+  }
+  #messageInput {
+    flex: 1; padding: 10px; border-radius: 20px; border: none; font-size: 1em; outline:none;
+    background: #333; color: #eee;
+  }
+  #sendBtn {
+    background:#4caf50; border:none; margin-left: 10px; padding: 10px 20px; border-radius: 20px; color:#121212; font-weight:700; cursor:pointer;
+  }
+  #authModal, #registerModal {
+    position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-content {
+    background:#222; padding: 25px 30px; border-radius: 10px; width: 320px; color:#eee;
+  }
+  .modal-content h2 {
+    margin-top: 0; margin-bottom: 20px; font-weight:700;
+  }
+  .modal-content input {
+    width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border:none; background:#333; color:#eee; font-size: 1em;
+    outline:none;
+  }
+  .modal-content button {
+    width: 100%; padding: 12px; border:none; border-radius: 6px; background:#4caf50; color:#121212; font-weight:700; cursor:pointer;
+  }
+  .modal-content .switch-btn {
+    background: #2196F3; margin-top: 10px;
+  }
+  .modal-content .error {
+    color: #f44336; margin-bottom: 10px; font-size: 0.9em;
+  }
+  #addFriendError {
+    color: #f44336;
+    margin: 0 10px 10px 10px;
+    font-size: 0.9em;
+    min-height: 18px;
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="userPanel" title="Ваш профиль">
+    <img id="userAvatar" src="https://i.pravatar.cc/40" alt="avatar" />
+    <span id="userNickname"></span>
+    <button id="logoutBtn" title="Выйти">Выйти</button>
+  </div>
+
+  <div>
+    <h2>Друзья</h2>
+    <div id="friendsList"></div>
+    <form id="addFriendForm">
+      <input id="addFriendInput" placeholder="Введите ник друга" autocomplete="off" />
+      <button id="addFriendBtn" type="submit">Добавить</button>
+    </form>
+    <div id="addFriendError"></div>
+  </div>
+
+  <div>
+    <h2>Каналы</h2>
+    <div id="channelsList"></div>
+    <form id="createChannelForm">
+      <input id="createChannelInput" placeholder="Название канала" autocomplete="off" />
+      <button id="createChannelBtn" type="submit">Создать</button>
+    </form>
+  </div>
+</div>
+
+<div id="main" style="flex:1; display:flex; flex-direction:column; height:100vh;">
+  <div id="chatHeader"><img id="chatAvatar" class="avatar" src="" alt=""/> <span id="chatName">Выберите чат</span></div>
+  <div id="chatMessages" style="flex:1; overflow-y:auto; background:#181818; padding:15px;"></div>
+  <form id="messageForm" style="display:flex; padding:10px; border-top:1px solid #333; background:#222;">
+    <input id="messageInput" placeholder="Введите сообщение" autocomplete="off" disabled style="flex:1; padding:10px; border-radius:20px; border:none; background:#333; color:#eee; outline:none;" />
+    <button id="sendBtn" type="submit" disabled style="background:#4caf50; border:none; margin-left:10px; padding:10px 20px; border-radius:20px; color:#121212; font-weight:700; cursor:pointer;">Отправить</button>
+  </form>
+</div>
+
+<!-- Модальное окно входа -->
+<div id="authModal">
+  <div class="modal-content">
+    <h2>Вход</h2>
+    <input id="email" type="email" placeholder="Email" autocomplete="username" />
+    <input id="password" type="password" placeholder="Пароль" autocomplete="current-password" />
+    <div class="error" id="authError"></div>
+    <button id="loginBtn">Войти</button>
+    <button id="showRegisterBtn" class="switch-btn">Регистрация</button>
+  </div>
+</div>
+
+<!-- Модальное окно регистрации -->
+<div id="registerModal" style="display:none;">
+  <div class="modal-content">
+    <h2>Регистрация</h2>
+    <input id="regNickname" type="text" placeholder="Ник" autocomplete="off" />
+    <input id="regEmail" type="email" placeholder="Email" autocomplete="email" />
+    <input id="regPassword" type="password" placeholder="Пароль" autocomplete="new-password" />
+    <div class="error" id="registerError"></div>
+    <button id="registerBtn">Зарегистрироваться</button>
+    <button id="showLoginBtn" class="switch-btn">Войти</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-database-compat.js"></script>
+
+<script>
+  // Конфиг Firebase - вставь сюда свои данные
+  const firebaseConfig = {
+    apiKey: "AIzaSyDVu3huSDdb-0I91PvquyKwq7wRWwHO-_c",
+    authDomain: "viagram-39ceb.firebaseapp.com",
+    databaseURL: "https://viagram-39ceb-default-rtdb.firebaseio.com",
+    projectId: "viagram-39ceb",
+    storageBucket: "viagram-39ceb.appspot.com",
+    messagingSenderId: "675296553760",
+    appId: "1:675296553760:web:5c2945343b5334cf2c4545",
+    measurementId: "G-M09JZ55WMC"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  let currentUser = null;
+  let currentChat = null;
+
+  // DOM
+  const authModal = document.getElementById("authModal");
+  const registerModal = document.getElementById("registerModal");
+  const authError = document.getElementById("authError");
+  const registerError = document.getElementById("registerError");
+
+  const userAvatar = document.getElementById("userAvatar");
+  const userNickname = document.getElementById("userNickname");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  const friendsList = document.getElementById("friendsList");
+  const channelsList = document.getElementById("channelsList");
+  const addFriendForm = document.getElementById("addFriendForm");
+  const addFriendInput = document.getElementById("addFriendInput");
+  const addFriendError = document.getElementById("addFriendError");
+
+  const createChannelForm = document.getElementById("createChannelForm");
+  const createChannelInput = document.getElementById("createChannelInput");
+
+  const chatHeader = document.getElementById("chatHeader");
+  const chatAvatar = document.getElementById("chatAvatar");
+  const chatName = document.getElementById("chatName");
+  const chatMessages = document.getElementById("chatMessages");
+  const messageForm = document.getElementById("messageForm");
+  const messageInput = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendBtn");
+
+  const loginBtn = document.getElementById("loginBtn");
+  const showRegisterBtn = document.getElementById("showRegisterBtn");
+  const registerBtn = document.getElementById("registerBtn");
+  const showLoginBtn = document.getElementById("showLoginBtn");
+
+  const DEFAULT_AVATAR = "https://i.pravatar.cc/150?img=12";
+
+  function sanitize(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Переключение окон вход/регистрация
+  showRegisterBtn.onclick = () => {
+    authModal.style.display = "none";
+    registerModal.style.display = "flex";
+    authError.textContent = "";
+    registerError.textContent = "";
+  };
+  showLoginBtn.onclick = () => {
+    registerModal.style.display = "none";
+    authModal.style.display = "flex";
+    authError.textContent = "";
+    registerError.textContent = "";
+  };
+
+  // Регистрация
+  registerBtn.onclick = () => {
+    registerError.textContent = "";
+    const nick = document.getElementById("regNickname").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const pass = document.getElementById("regPassword").value;
+
+    if (!nick) {
+      registerError.textContent = "Введите ник";
+      return;
+    }
+    if (!email) {
+      registerError.textContent = "Введите email";
+      return;
+    }
+    if (!pass || pass.length < 6) {
+      registerError.textContent = "Пароль минимум 6 символов";
+      return;
+    }
+
+    auth.createUserWithEmailAndPassword(email, pass)
+      .then(cred => {
+        return db.ref("users/" + cred.user.uid).set({
+          nickname: nick,
+          avatar: DEFAULT_AVATAR,
+          online: true
+        });
+      })
+      .then(() => {
+        registerModal.style.display = "none";
+        authModal.style.display = "none";
+      })
+      .catch(err => {
+        registerError.textContent = err.message;
+      });
+  };
+
+  // Вход
+  loginBtn.onclick = () => {
+    authError.textContent = "";
+    const email = document.getElementById("email").value.trim();
+    const pass = document.getElementById("password").value;
+
+    if (!email) {
+      authError.textContent = "Введите email";
+      return;
+    }
+    if (!pass) {
+      authError.textContent = "Введите пароль";
+      return;
+    }
+
+    auth.signInWithEmailAndPassword(email, pass)
+      .then(() => {
+        authModal.style.display = "none";
+        registerModal.style.display = "none";
+      })
+      .catch(err => {
+        authError.textContent = err.message;
+      });
+  };
+
+  logoutBtn.onclick = () => {
+    auth.signOut();
+  };
+
+  // Обновление статуса онлайн
+  function updateOnlineStatus(uid, online) {
+    db.ref("users/" + uid).update({ online });
+  }
+
+  // Загрузка друзей
+  function loadFriends() {
+    friendsList.innerHTML = "";
+    if (!currentUser) return;
+
+    db.ref("friends/" + currentUser.uid).on("value", snapshot => {
+      friendsList.innerHTML = "";
+      const friends = snapshot.val() || {};
+      if (Object.keys(friends).length === 0) {
+        friendsList.innerHTML = "<div style='margin:10px;color:#777;'>У вас нет друзей</div>";
+        return;
+      }
+      Object.keys(friends).forEach(friendId => {
+        db.ref("users/" + friendId).once("value").then(snap => {
+          const data = snap.val();
+          if (!data) return;
+          const div = document.createElement("div");
+          div.classList.add("list-item");
+          div.dataset.type = "friend";
+          div.dataset.id = friendId;
+          div.innerHTML = `<img class="avatar" src="${data.avatar || DEFAULT_AVATAR}" alt=""/>` +
+                          `<span>${sanitize(data.nickname)}</span>` +
+                          (data.online ? '<div class="online-dot" title="Онлайн"></div>' : '');
+          div.onclick = () => openChat("friend", friendId, data.nickname, data.avatar);
+          friendsList.appendChild(div);
+        });
+      });
+    });
+  }
+
+  // Загрузка каналов
+  function loadChannels() {
+    channelsList.innerHTML = "";
+    db.ref("channels").on("value", snapshot => {
+      channelsList.innerHTML = "";
+      const channels = snapshot.val() || {};
+      if (Object.keys(channels).length === 0) {
+        channelsList.innerHTML = "<div style='margin:10px;color:#777;'>Нет каналов</div>";
+        return;
+      }
+      Object.entries(channels).forEach(([channelId, channel]) => {
+        const div = document.createElement("div");
+        div.classList.add("list-item");
+        div.dataset.type = "channel";
+        div.dataset.id = channelId;
+        div.innerHTML = `<img class="avatar" src="${channel.avatar || DEFAULT_AVATAR}" alt=""/>` +
+                        `<span>${sanitize(channel.name)}</span>`;
+        div.onclick = () => openChat("channel", channelId, channel.name, channel.avatar);
+        channelsList.appendChild(div);
+      });
+    });
+  }
+
+  // Создание канала
+  createChannelForm.onsubmit = e => {
+    e.preventDefault();
+    const name = createChannelInput.value.trim();
+    if (!name) return alert("Введите название канала");
+
+    const channelRef = db.ref("channels").push();
+    channelRef.set({
+      name,
+      avatar: DEFAULT_AVATAR,
+      createdBy: currentUser.uid,
+      createdAt: Date.now()
+    }).then(() => {
+      createChannelInput.value = "";
+    });
+  };
+
+  // Добавление друга с обработкой ошибок
+  addFriendForm.onsubmit = e => {
+    e.preventDefault();
+    addFriendError.textContent = "";
+
+    const nick = addFriendInput.value.trim();
+    if (!nick) {
+      addFriendError.textContent = "Введите ник друга";
+      return;
+    }
+
+    db.ref("users").orderByChild("nickname").equalTo(nick).once("value")
+      .then(snapshot => {
+        if (snapshot.exists()) {
+          let foundUser = null;
+          snapshot.forEach(child => {
+            if (child.key !== currentUser.uid) foundUser = { id: child.key, ...child.val() };
+          });
+
+          if (!foundUser) {
+            addFriendError.textContent = "Нельзя добавить самого себя";
+            return;
+          }
+
+          const updates = {};
+          updates[`friends/${currentUser.uid}/${foundUser.id}`] = true;
+          updates[`friends/${foundUser.id}/${currentUser.uid}`] = true;
+
+          return db.ref().update(updates)
+            .then(() => {
+              addFriendInput.value = "";
+              addFriendError.textContent = "";
+            })
+            .catch(err => {
+              addFriendError.textContent = "Ошибка при добавлении друга: " + err.message;
+            });
+        } else {
+          addFriendError.textContent = `Пользователь с ником "${nick}" не найден`;
+        }
+      })
+      .catch(err => {
+        addFriendError.textContent = "Ошибка при поиске пользователя: " + err.message;
+      });
+  };
+
+  // Генерация ID чата между двумя пользователями
+  function getChatId(uid1, uid2) {
+    return uid1 < uid2 ? uid1 + "_" + uid2 : uid2 + "_" + uid1;
+  }
+
+  // Открытие чата
+  function openChat(type, id, name, avatar) {
+    currentChat = { type, id, name, avatar };
+    chatName.textContent = name;
+    chatAvatar.src = avatar || DEFAULT_AVATAR;
+    chatMessages.innerHTML = "";
+    messageInput.disabled = false;
+    sendBtn.disabled = false;
+
+    // Отписываемся от предыдущего чата, если есть
+    if (window.currentChatRef) {
+      window.currentChatRef.off();
+    }
+
+    if (type === "friend") {
+      const chatId = getChatId(currentUser.uid, id);
+      const chatRef = db.ref("messages/" + chatId);
+      window.currentChatRef = chatRef;
+      chatRef.off();
+      chatRef.on("child_added", snap => {
+        const msg = snap.val();
+        appendMessage(msg);
+      });
+    } else if (type === "channel") {
+      const chatRef = db.ref("channelMessages/" + id);
+      window.currentChatRef = chatRef;
+      chatRef.off();
+      chatRef.on("child_added", snap => {
+        const msg = snap.val();
+        appendMessage(msg);
+      });
+    }
+  }
+
+  // Добавляем сообщение в чат
+  function appendMessage(msg) {
+    const div = document.createElement("div");
+    div.classList.add("message");
+    div.classList.add(msg.senderId === currentUser.uid ? "self" : "other");
+    div.innerHTML = `<img class="avatar" src="${msg.senderAvatar || DEFAULT_AVATAR}" alt=""/>` +
+                    `<div>${sanitize(msg.text)}</div>`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Отправка сообщения
+  messageForm.onsubmit = e => {
+    e.preventDefault();
+    if (!messageInput.value.trim() || !currentChat) return;
+
+    const msgObj = {
+      text: messageInput.value.trim(),
+      senderId: currentUser.uid,
+      senderAvatar: userAvatar.src,
+      timestamp: Date.now()
+    };
+
+    if (currentChat.type === "friend") {
+      const chatId = getChatId(currentUser.uid, currentChat.id);
+      db.ref("messages/" + chatId).push(msgObj);
+    } else if (currentChat.type === "channel") {
+      db.ref("channelMessages/" + currentChat.id).push(msgObj);
+    }
+
+    messageInput.value = "";
+  };
+
+  // Обработка состояния аутентификации
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      authModal.style.display = "none";
+      registerModal.style.display = "none";
+
+      db.ref("users/" + currentUser.uid).once("value").then(snap => {
+        const data = snap.val();
+        userNickname.textContent = data.nickname || "Пользователь";
+        userAvatar.src = data.avatar || DEFAULT_AVATAR;
+      });
+
+      updateOnlineStatus(currentUser.uid, true);
+
+      window.addEventListener("beforeunload", () => {
+        updateOnlineStatus(currentUser.uid, false);
+      });
+      window.addEventListener("unload", () => {
+        updateOnlineStatus(currentUser.uid, false);
+      });
+
+      loadFriends();
+      loadChannels();
+
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+      chatName.textContent = "Выберите чат";
+      chatAvatar.src = "";
+
+      chatMessages.innerHTML = "";
+      friendsList.innerHTML = "";
+      channelsList.innerHTML = "";
+    } else {
+      updateOnlineStatus(currentUser?.uid, false);
+      currentUser = null;
+      authModal.style.display = "flex";
+      registerModal.style.display = "none";
+
+      userNickname.textContent = "";
+      userAvatar.src = DEFAULT_AVATAR;
+
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+      chatName.textContent = "Выберите чат";
+      chatAvatar.src = "";
+
+      chatMessages.innerHTML = "";
+      friendsList.innerHTML = "";
+      channelsList.innerHTML = "";
+    }
+  });
+</script>
+
+</body>
+</html>
